@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  # FHEVM Node - Local FHE-enabled blockchain
+  fhevm-node:
+    image: ghcr.io/zama-ai/fhevm-node:latest
+    container_name: fhevm-node
+    ports:
+      - "8545:8545"
+    environment:
+      - LOG_LEVEL=info
+    volumes:
+      - fhevm-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - fhevm-network
+
+  # Development environment - Hardhat with FHEVM contracts
+  dev:
+    build:
+      context: .
+      target: development
+    container_name: fhevm-dev
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "8546:8545"  # Secondary Hardhat node
+    environment:
+      - NODE_ENV=development
+      - FHEVM_NODE_URL=http://fhevm-node:8545
+    depends_on:
+      fhevm-node:
+        condition: service_healthy
+    networks:
+      - fhevm-network
+    command: npx hardhat node --network localhost
+
+  # Test environment - Run tests
+  test:
+    build:
+      context: .
+      target: test
+    container_name: fhevm-test
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=test
+    depends_on:
+      fhevm-node:
+        condition: service_healthy
+    networks:
+      - fhevm-network
+    command: npm run test
+
+  # Static analysis - Linting and security checks
+  lint:
+    image: node:20-alpine
+    container_name: fhevm-lint
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: >
+      sh -c "
+        npm install &&
+        npm run compile &&
+        npx solhint 'contracts/**/*.sol' &&
+        npx prettier --check 'contracts/**/*.sol' 'scripts/**/*.ts'
+      "
+    networks:
+      - fhevm-network
+
+  # Coverage report generation
+  coverage:
+    build:
+      context: .
+      target: development
+    container_name: fhevm-coverage
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=test
+    depends_on:
+      fhevm-node:
+        condition: service_healthy
+    networks:
+      - fhevm-network
+    command: npm run coverage
+
+volumes:
+  fhevm-data:
+    driver: local
+
+networks:
+  fhevm-network:
+    driver: bridge
+
+# Service descriptions:
+#
+# fhevm-node: Local FHE-enabled blockchain for development
+#   - Runs on port 8545
+#   - Provides FHE operations for testing
+#
+# dev: Development environment with Hardhat
+#   - Hot-reload for contract changes
+#   - Access to fhevm-node
+#   - Port 8546 for secondary node
+#
+# test: Test execution environment
+#   - Runs all tests automatically
+#   - Depends on fhevm-node being ready
+#
+# lint: Code quality checks
+#   - Solhint for Solidity linting
+#   - Prettier for code formatting
+#
+# coverage: Test coverage reports
+#   - Generates coverage report
+#   - Saves to coverage/ directory

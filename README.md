@@ -6,7 +6,7 @@ Advanced Fully Homomorphic Encryption implementation demonstrating privacy-prese
 
 This submission presents a complete FHEVM (Fully Homomorphic Encryption Virtual Machine) example implementation for the Zama Bounty Track December 2025: Build The FHEVM Example Hub competition. It showcases a production-ready confidential auction system with encrypted bidding, homomorphic comparisons, and settlement mechanics - exemplifying advanced applications of Fully Homomorphic Encryption in smart contracts.
 
-[CONFIDENTIAL AUCTION.mp4](https://streamable.com/rmctu1)
+[CONFIDENTIAL AUCTION.mp4](https://youtu.be/_qedTW2SKP8)
 
 [Live Demo](https://confidential-auction-nine.vercel.app/)
 
