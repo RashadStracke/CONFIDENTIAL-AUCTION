@@ -1,0 +1,144 @@
+name: Tests and Linting
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Compile contracts
+        run: npm run compile
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Generate coverage report
+        run: npm run coverage
+        continue-on-error: true
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/coverage-final.json
+          flags: unittests
+          name: codecov-umbrella
+        continue-on-error: true
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Solhint
+        run: npx solhint 'contracts/**/*.sol'
+        continue-on-error: true
+
+      - name: Run Prettier
+        run: npx prettier --check 'contracts/**/*.sol' 'scripts/**/*.ts'
+        continue-on-error: true
+
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Check for vulnerabilities
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+
+      - name: Check for outdated packages
+        run: npm outdated
+        continue-on-error: true
+
+  examples:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Compile examples
+        run: npx hardhat compile
+
+      - name: Verify examples structure
+        run: |
+          test -d "examples/basic" || exit 1
+          test -d "examples/encryption" || exit 1
+          test -d "examples/decryption" || exit 1
+          test -d "examples/access-control" || exit 1
+          test -d "examples/advanced" || exit 1
+          test -d "examples/openzeppelin" || exit 1
+        continue-on-error: false
+
+  documentation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check documentation
+        run: |
+          test -f "README.md" || exit 1
+          test -f "DEVELOPER_GUIDE.md" || exit 1
+          test -f "ANTI_PATTERNS_GUIDE.md" || exit 1
+          test -f "INPUT_PROOF_GUIDE.md" || exit 1
+          test -f "HANDLES_GUIDE.md" || exit 1
+          test -f "DEPLOYMENT_GUIDE.md" || exit 1
+        continue-on-error: false
+
+      - name: Verify markdown
+        run: npx markdownlint 'README.md' '*.md'
+        continue-on-error: true
